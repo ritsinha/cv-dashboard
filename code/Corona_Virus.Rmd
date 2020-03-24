@@ -1,8 +1,11 @@
 ---
-title: "Corona Virus: Answering Questions I have"
+title: 'Corona Virus: Answering Questions I have'
 author: "Ritwik Sinha"
 date: "3/24/2020"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -174,7 +177,7 @@ ggplot(subset(dat_deaths_long, (Country %in% top_countries$Country[1:top] & tota
 
 ```
 
-We next perform the same excercise as before, fitting a simple linear regression and extrapolating it. 
+We next perform the same excercise as before, fitting a simple linear regression and extrapolating it. These fits are not good for China, and Iran, because these countries have flattened the curve. Even Italy seems to be doing better. But at this rate, the US will have **10,000** deaths within 10 days.  
 
 ```{r echo=FALSE}
 dat_deaths_long_selected = subset(dat_deaths_long, (Country %in% top_countries$Country[1:top] & total > 50))
@@ -196,6 +199,41 @@ ggplot(subset(dat_deaths_long_selected_predicted, Country %in% c("US", "Italy", 
        aes(x = Date, y = total, color = Country)) + 
   geom_line(aes(linetype= type)) + geom_point(aes(shape = type)) + theme_bw(14) + 
   ylab("Number of Confirmed Cases") + scale_y_log10()
+
+```
+
+### Deaths across all countries
+Next, let's analyze the deaths for all coutries. Again, I fit a simple model to capture the pattern. I fit a degree 3 polynomial to capture the pattern thus far, and extrapolate it for the next 15 days. Of course, this does not capture the effect of the social distancing efforts that are currently on-going all over the world. But if nothing were done, this could be a very likely scenario. The scary thing with this fit is that the regression has an Adjusted R-squared of 0.9986, showing how good a fit this simple regression model is to the data.  
+
+```{r echo=FALSE}
+dat_deaths_daily = dat_deaths_long %>%
+  group_by(Date) %>%
+  summarise(daily_total = sum(total)) %>%
+  data.frame()
+
+#ggplot(dat_deaths_daily, 
+#       aes(x = Date, y = daily_total)) + 
+#  geom_line() + geom_point() + theme_bw(14) + ylab("Number of Deaths") + scale_y_log10()
+
+dat_deaths_daily$days_from_1stjan = as.numeric(dat_deaths_daily$Date - as.Date("2020-01-01"))
+
+fit = lm(log10(daily_total) ~ poly(days_from_1stjan, 3), data = dat_deaths_daily)
+
+predict_df = data.frame(days_from_1stjan = max(dat_deaths_daily$days_from_1stjan)+1:15,
+                        Date = max(dat_deaths_long_selected$Date)+1:15)
+
+predict_df$daily_total = 10^predict.lm(fit, newdata = predict_df)
+predict_df$type = "Predicted"
+
+dat_deaths_daily$type = "Observed"
+
+dat_deaths_daily_predicted = merge(dat_deaths_daily, predict_df, all = TRUE)
+
+ggplot(dat_deaths_daily_predicted, 
+       aes(x = Date, y = daily_total)) + 
+  geom_line(aes(linetype= type)) + geom_point(aes(shape = type)) + theme_bw(14) + 
+  ylab("Number of Deaths") + scale_y_log10()
+
 
 ```
 
