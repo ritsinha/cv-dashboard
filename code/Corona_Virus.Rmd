@@ -1,0 +1,201 @@
+---
+title: "Corona Virus: Answering Questions I have"
+author: "Ritwik Sinha"
+date: "3/24/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load libraries
+library(data.table)
+library(ggplot2)
+library(dplyr)
+library(rlang)
+library(tidyverse)
+library(tidyr)
+library(knitr)
+
+```
+
+## Let's import the data
+
+This is based on the data that is stored and updated daily on this Git Repository <https://github.com/CSSEGISandData/COVID-19>. Please clone this repo, and get the data locally, if you want to rerun this code. 
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+dat_cases = read_csv("../../COVID-19/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv")
+
+names(dat_cases)[1] = "State"
+names(dat_cases)[2] = "Country"
+
+for(i in 5:length(names(dat_cases))){
+  names(dat_cases)[i] = paste("date", gsub("/", "_", names(dat_cases)[i]), sep="")
+}
+
+first_date = names(dat_cases)[5]
+last_date = names(dat_cases)[length(names(dat_cases))]
+
+top_countries = dat_cases %>% 
+  group_by(Country) %>%
+  summarize(total = sum(!!sym(last_date))) %>%
+  arrange(desc(total)) %>%
+  data.frame()
+  
+dat_cases_long = dat_cases %>%
+  gather(Date, Value, !!sym(first_date):!!sym(last_date)) %>%
+  data.frame()
+
+dat_cases_long$State = NULL
+dat_cases_long$Lat = NULL
+dat_cases_long$Long = NULL
+
+dat_cases_long = dat_cases_long %>%
+  group_by(Country, Date) %>%
+  summarise(total = sum(Value)) %>%
+  data.frame()
+
+dat_cases_long$Date  = as.Date(gsub("_", "-", gsub("date", "", dat_cases_long$Date)), "%m-%d-%y")
+
+dat_cases_long = dat_cases_long %>%
+  arrange(Country, Date)
+
+dat_deaths = read_csv("../../COVID-19/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv")
+
+names(dat_deaths)[1] = "State"
+names(dat_deaths)[2] = "Country"
+
+for(i in 5:length(names(dat_deaths))){
+  names(dat_deaths)[i] = paste("date", gsub("/", "_", names(dat_deaths)[i]), sep="")
+}
+
+first_date = names(dat_deaths)[5]
+last_date = names(dat_deaths)[length(names(dat_deaths))]
+
+top_countries_deaths = dat_deaths %>% 
+  group_by(Country) %>%
+  summarize(total = sum(!!sym(last_date))) %>%
+  arrange(desc(total)) %>%
+  data.frame()
+
+dat_deaths_long = dat_deaths %>%
+  gather(Date, Value, !!sym(first_date):!!sym(last_date)) %>%
+  data.frame()
+
+dat_deaths_long$State = NULL
+dat_deaths_long$Lat = NULL
+dat_deaths_long$Long = NULL
+
+dat_deaths_long = dat_deaths_long %>%
+  group_by(Country, Date) %>%
+  summarise(total = sum(Value)) %>%
+  data.frame()
+
+dat_deaths_long$Date  = as.Date(gsub("_", "-", gsub("date", "", dat_deaths_long$Date)), "%m-%d-%y")
+
+dat_deaths_long = dat_deaths_long %>%
+  arrange(Country, Date)
+
+top = 12
+
+```
+
+## Confirmed Cases
+
+Let's look at the daily counts by country. Below are the counts in their natural scale. 
+
+```{r echo=FALSE}
+ggplot(subset(dat_cases_long, (Country %in% top_countries$Country[1:top] & total > 100)), 
+       aes(x = Date, y = total, color = Country)) + 
+  geom_line() + geom_point() + theme_bw(14) + ylab("Number of Confirmed Cases")
+
+```
+
+Below are the top countries by cases as off today, `r Sys.Date()`. 
+```{r echo=FALSE}
+kable(top_countries[1:15,], caption = "The top countries by cases")
+```
+
+
+Next, let's look at the data on the logarithmic scale. Apart from a few countries, like China, South Korea, Iran, and even Italy, all other countries seem to be very close to a straight line. Suggesting an almost perfect exponential growth in cases.  
+
+```{r echo=FALSE}
+ggplot(subset(dat_cases_long, (Country %in% top_countries$Country[1:top] & total > 100)), 
+       aes(x = Date, y = total, color = Country)) + 
+  geom_line() + geom_point() + theme_bw(14) + ylab("Number of Confirmed Cases") + scale_y_log10()
+
+```
+
+Given how good the exponential fit seems to be, I next perform a regression to predict the future number of cases by country. This is a very simple model, a country specific regression, where we fit a linear regression to the logarithm of the number of cases. In the absence of significant efforts, like the lockdowns that are currently in place, each of the countries below are likely to see million plus cases, in just 10 days. 
+
+```{r echo=FALSE}
+dat_cases_long_selected = subset(dat_cases_long, (Country %in% top_countries$Country[1:top] & total > 100))
+
+fit = lm(log10(total) ~ -1 + Country + Country:Date, data = dat_cases_long_selected,
+         weights = )
+
+predict_df = data.frame(expand.grid(Country = unique(dat_cases_long_selected$Country), 
+                                    Date = max(dat_cases_long_selected$Date)+1:10))
+
+predict_df$total = 10^predict.lm(fit, newdata = predict_df)
+predict_df$type = "Predicted"
+
+dat_cases_long_selected$type = "Observed"
+
+dat_cases_long_selected_predicted = merge(dat_cases_long_selected, predict_df, all = TRUE)
+
+ggplot(subset(dat_cases_long_selected_predicted, Country %in% c("US", "Italy", "Spain","Germany")), 
+       aes(x = Date, y = total, color = Country)) + 
+  geom_line(aes(linetype= type)) + geom_point(aes(shape = type)) + theme_bw(14) + 
+  ylab("Number of Confirmed Cases") + scale_y_log10()
+
+```
+
+## Deaths
+Let’s look at the daily counts deaths by country. Below are the counts in their natural scale.
+```{r echo = FALSE}
+ggplot(subset(dat_deaths_long, (Country %in% top_countries$Country[1:top] & total > 10)), 
+       aes(x = Date, y = total, color = Country)) + 
+  geom_line() + geom_point() + theme_bw(14) + ylab("Number of Deaths")
+
+```
+
+
+Below are the top countries by deaths as off today, `r Sys.Date()`. 
+```{r echo=FALSE}
+kable(top_countries_deaths[1:15,], caption = "The top countries by cases")
+```
+
+Let's look at the same plot on the logarithmic scale. 
+```{r echo = FALSE}
+ggplot(subset(dat_deaths_long, (Country %in% top_countries$Country[1:top] & total > 10)), 
+       aes(x = Date, y = total, color = Country)) + 
+  geom_line() + geom_point() + theme_bw(14) + ylab("Number of Deaths") + scale_y_log10()
+
+```
+
+We next perform the same excercise as before, fitting a simple linear regression and extrapolating it. 
+
+```{r echo=FALSE}
+dat_deaths_long_selected = subset(dat_deaths_long, (Country %in% top_countries$Country[1:top] & total > 50))
+
+fit = lm(log10(total) ~ -1 + Country + Country:Date, data = dat_deaths_long_selected)
+
+predict_df = data.frame(expand.grid(Country = unique(dat_deaths_long_selected$Country), 
+                                    Date = max(dat_deaths_long_selected$Date)+1:10))
+
+predict_df$total = 10^predict.lm(fit, newdata = predict_df)
+predict_df$type = "Predicted"
+
+dat_deaths_long_selected$type = "Observed"
+
+dat_deaths_long_selected_predicted = merge(dat_deaths_long_selected, predict_df, all = TRUE)
+
+ggplot(subset(dat_deaths_long_selected_predicted, Country %in% c("US", "Italy", "Spain","Germany", 
+                                                          "Iran", "China")), 
+       aes(x = Date, y = total, color = Country)) + 
+  geom_line(aes(linetype= type)) + geom_point(aes(shape = type)) + theme_bw(14) + 
+  ylab("Number of Confirmed Cases") + scale_y_log10()
+
+```
+
