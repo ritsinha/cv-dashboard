@@ -77,8 +77,8 @@ last_date = names(dat_deaths)[length(names(dat_deaths))]
 
 top_countries_deaths = dat_deaths %>% 
   group_by(Country) %>%
-  summarize(total = sum(!!sym(last_date))) %>%
-  arrange(desc(total)) %>%
+  summarize(total_deaths = sum(!!sym(last_date))) %>%
+  arrange(desc(total_deaths)) %>%
   data.frame()
 
 dat_deaths_long = dat_deaths %>%
@@ -131,8 +131,8 @@ ggplot(subset(dat_cases_long, (Country %in% top_countries$Country[1:top] & total
 
 Given how good the exponential fit seems to be, I next perform a regression to predict the future number of cases by country. This is a very simple model, a country specific regression, where we fit a linear regression to the logarithm of the number of cases. In the absence of significant efforts, like the lockdowns that are currently in place, each of the countries below are likely to see million plus cases, in just 10 days. 
 
-```{r echo=FALSE}
-dat_cases_long_selected = subset(dat_cases_long, (Country %in% top_countries$Country[1:top] & total > 100))
+```{r echo=FALSE, warning = FALSE}
+dat_cases_long_selected = subset(dat_cases_long, (Country %in% c(top_countries$Country[1:top], "India") & total > 100))
 
 fit = lm(log10(total) ~ -1 + Country + Country:Date, data = dat_cases_long_selected,
          weights = )
@@ -147,7 +147,7 @@ dat_cases_long_selected$type = "Observed"
 
 dat_cases_long_selected_predicted = merge(dat_cases_long_selected, predict_df, all = TRUE)
 
-ggplot(subset(dat_cases_long_selected_predicted, Country %in% c("US", "Italy", "Spain","Germany")), 
+ggplot(subset(dat_cases_long_selected_predicted, Country %in% c("US", "Italy", "Spain","Germany", "India")), 
        aes(x = Date, y = total, color = Country)) + 
   geom_line(aes(linetype= type)) + geom_point(aes(shape = type)) + theme_bw(14) + 
   ylab("Number of Confirmed Cases") + scale_y_log10()
@@ -179,7 +179,7 @@ ggplot(subset(dat_deaths_long, (Country %in% top_countries$Country[1:top] & tota
 
 We next perform the same excercise as before, fitting a simple linear regression and extrapolating it. These fits are not good for China, and Iran, because these countries have flattened the curve. Even Italy seems to be doing better. But at this rate, the US will have **10,000** deaths within 10 days.  
 
-```{r echo=FALSE}
+```{r echo=FALSE, warning = FALSE}
 dat_deaths_long_selected = subset(dat_deaths_long, (Country %in% top_countries$Country[1:top] & total > 50))
 
 fit = lm(log10(total) ~ -1 + Country + Country:Date, data = dat_deaths_long_selected)
@@ -195,7 +195,7 @@ dat_deaths_long_selected$type = "Observed"
 dat_deaths_long_selected_predicted = merge(dat_deaths_long_selected, predict_df, all = TRUE)
 
 ggplot(subset(dat_deaths_long_selected_predicted, Country %in% c("US", "Italy", "Spain","Germany", 
-                                                          "Iran", "China")), 
+                                                          "Iran", "China", "United Kingdom")), 
        aes(x = Date, y = total, color = Country)) + 
   geom_line(aes(linetype= type)) + geom_point(aes(shape = type)) + theme_bw(14) + 
   ylab("Number of Confirmed Cases") + scale_y_log10()
@@ -205,7 +205,7 @@ ggplot(subset(dat_deaths_long_selected_predicted, Country %in% c("US", "Italy", 
 ### Deaths across all countries
 Next, let's analyze the deaths for all coutries. Again, I fit a simple model to capture the pattern. I fit a degree 3 polynomial to capture the pattern thus far, and extrapolate it for the next 15 days. Of course, this does not capture the effect of the social distancing efforts that are currently on-going all over the world. But if nothing were done, this could be a very likely scenario. The scary thing with this fit is that the regression has an Adjusted R-squared of 0.9986, showing how good a fit this simple regression model is to the data.  
 
-```{r echo=FALSE}
+```{r echo=FALSE, warning = FALSE}
 dat_deaths_daily = dat_deaths_long %>%
   group_by(Date) %>%
   summarise(daily_total = sum(total)) %>%
@@ -234,6 +234,49 @@ ggplot(dat_deaths_daily_predicted,
   geom_line(aes(linetype= type)) + geom_point(aes(shape = type)) + theme_bw(14) + 
   ylab("Number of Deaths") + scale_y_log10()
 
+
+```
+
+## Mortality Rate
+
+Next, let's start looking at the mortality rates across countries. We see a big spread, going from 0.5% in Germany to 10% in Italy. 
+
+```{r echo=FALSE, warning = FALSE}
+names(top_countries)[2] = "total_cases"
+top_countries_both = merge(top_countries, top_countries_deaths, all = TRUE)
+#head(top_countries)
+top_countries_both$mortality_rate = 100*top_countries_both$total_deaths/top_countries_both$total_cases
+top_countries_both$mortality_rate_sd = 100*sqrt(top_countries_both$mortality_rate/100*(1-top_countries_both$mortality_rate/100)/top_countries_both$total_cases)
+
+top_countries_both = top_countries_both %>% arrange(desc(total_cases)) %>% data.frame()
+
+ggplot(top_countries_both[1:top,], aes(x = reorder(Country, mortality_rate), y = mortality_rate, fill = total_cases)) + 
+  geom_bar(stat="identity") + geom_errorbar(aes(ymin = (mortality_rate - 2*mortality_rate_sd),
+                                                ymax = (mortality_rate + 2*mortality_rate_sd)), width=0.2) + 
+  coord_flip() + theme_bw(14) + ylab("Mortality Rate (%)") + xlab("Country")
+```
+
+Let's also look at the mortality rate over time (the curves below are smoothed). We see that the mortality rate for most countries seem to be rising. There are two opposing forces:
+
+1. Force 1: The **denominator is low**, not all cases (especially the mild cases are not tested). If this is true, as testing rolls out extensively, we expect to see the mortality rate to fall. 
+1. Force 2: The **numerator is low**, many people who die will likely pass away weeks or months from case confirmation. This means that the mortality rate will grow as time passes. 
+
+Let's look at a few cases below. 
+
+* For Italy and Spain, the mortality rate seems to be rising steadily. This is discencerting because the rate is already very high for these counrties. The UK, France and The Netherlands seems to be displaying a very similar pattern. These seem to suggest that we are seeing Force 2 dominate Force 1. The other possibility is that the disease spread is such that the increased testing is not testing enough mild cases. 
+* For the US, we see two distinct patterns, first the rate was going down, and then it is going up. Given the lack of testing in the US in the early days, it is likely that the it first went down as many mild cases were detected. 
+
+```{r echo=FALSE, warning = FALSE}
+names(dat_cases_long)[3] = "total_cases"
+names(dat_deaths_long)[3] = "total_deaths"
+
+dat_both_long = merge(dat_cases_long, dat_deaths_long)
+dat_both_long$mortality_rate = dat_both_long$total_deaths/(dat_both_long$total_cases+1) * 100
+
+ggplot(subset(dat_both_long, (Country %in% top_countries_both$Country[1:12] & total_cases > 1000)), 
+       aes(x=Date, y = mortality_rate, color=total_cases)) +
+  geom_smooth(method = 'loess', span=0.6) + theme_bw() + ylab("Mortality Rate (%)") + 
+  facet_wrap(~Country, scales = 'fixed') + theme(axis.text.x=element_text(angle = -90, vjust = 0.5, hjust=1))
 
 ```
 
