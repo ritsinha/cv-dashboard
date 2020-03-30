@@ -154,6 +154,44 @@ ggplot(subset(dat_cases_long_selected_predicted, Country %in% c("US", "Italy", "
 
 ```
 
+### Cases across all countries
+Next, let's analyze the number of confirmed cases for all coutries. Again, I fit a simple model to capture the pattern. I fit a degree 3 polynomial to capture the pattern thus far, and extrapolate it for the next 15 days. Additionally, I add a weight that gives greater weights to later time points, the goal of this is to capture the possible effect of the significant worldwide social distancing efforts. Of course, this does not entirely capture the effect of the social distancing, especially what we will see in the coming days. But if nothing were done, this could be a very likely scenario. The scary thing with this fit is that the regression has an Adjusted R-squared of 0.9939, showing how good a fit this simple regression model is to the data.  
+
+```{r echo=FALSE, warning = FALSE}
+dat_cases_daily = dat_cases_long %>%
+  group_by(Date) %>%
+  summarise(daily_total = sum(total)) %>%
+  data.frame()
+
+#ggplot(dat_deaths_daily, 
+#       aes(x = Date, y = daily_total)) + 
+#  geom_line() + geom_point() + theme_bw(14) + ylab("Number of Deaths") + scale_y_log10()
+
+dat_cases_daily$days_from_1stjan = as.numeric(dat_cases_daily$Date - as.Date("2020-01-01"))
+
+# Define a weight function which is quadratic in the number of days. This will be used in the regression to give higher wweights to the later points. 
+dat_cases_daily$weights = (dat_cases_daily$days_from_1stjan - min(dat_cases_daily$days_from_1stjan) + 1)^3
+
+fit = lm(log10(daily_total) ~ poly(days_from_1stjan, 3), data = dat_cases_daily, weights = dat_cases_daily$weights)
+
+predict_df = data.frame(days_from_1stjan = max(dat_cases_daily$days_from_1stjan)+1:15,
+                        Date = max(dat_cases_daily$Date)+1:15)
+
+predict_df$daily_total = 10^predict.lm(fit, newdata = predict_df)
+predict_df$type = "Predicted"
+
+dat_cases_daily$type = "Observed"
+
+dat_cases_daily_predicted = merge(dat_cases_daily, predict_df, all = TRUE)
+
+ggplot(dat_cases_daily_predicted, 
+       aes(x = Date, y = daily_total)) + 
+  geom_line(aes(linetype= type)) + geom_point(aes(shape = type)) + theme_bw(14) + 
+  ylab("Number of Confirmed Cases") + scale_y_log10()
+
+
+```
+
 ## Deaths
 Let’s look at the daily counts deaths by country. Below are the counts in their natural scale.
 ```{r echo = FALSE}
@@ -217,7 +255,10 @@ dat_deaths_daily = dat_deaths_long %>%
 
 dat_deaths_daily$days_from_1stjan = as.numeric(dat_deaths_daily$Date - as.Date("2020-01-01"))
 
-fit = lm(log10(daily_total) ~ poly(days_from_1stjan, 3), data = dat_deaths_daily)
+# Define a weight function which is quadratic in the number of days. This will be used in the regression to give higher wweights to the later points. 
+dat_deaths_daily$weights = (dat_deaths_daily$days_from_1stjan - min(dat_deaths_daily$days_from_1stjan) + 1)^3
+
+fit = lm(log10(daily_total) ~ poly(days_from_1stjan, 3), data = dat_deaths_daily, weights = dat_deaths_daily$weights)
 
 predict_df = data.frame(days_from_1stjan = max(dat_deaths_daily$days_from_1stjan)+1:15,
                         Date = max(dat_deaths_long_selected$Date)+1:15)
