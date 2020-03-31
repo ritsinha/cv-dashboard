@@ -27,7 +27,7 @@ library(knitr)
 This is based on the data that is stored and updated daily on this Git Repository <https://github.com/CSSEGISandData/COVID-19>. Please clone this repo, and get the data locally, if you want to rerun this code. 
 
 ```{r message=FALSE, warning=FALSE, echo=FALSE}
-dat_cases = read_csv("../../COVID-19/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv")
+dat_cases = read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv")
 
 names(dat_cases)[1] = "State"
 names(dat_cases)[2] = "Country"
@@ -63,7 +63,7 @@ dat_cases_long$Date  = as.Date(gsub("_", "-", gsub("date", "", dat_cases_long$Da
 dat_cases_long = dat_cases_long %>%
   arrange(Country, Date)
 
-dat_deaths = read_csv("../../COVID-19/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv")
+dat_deaths = read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv")
 
 names(dat_deaths)[1] = "State"
 names(dat_deaths)[2] = "Country"
