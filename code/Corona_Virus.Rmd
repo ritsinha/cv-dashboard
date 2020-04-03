@@ -204,7 +204,7 @@ ggplot(subset(dat_deaths_long, (Country %in% top_countries$Country[1:top] & tota
 
 Below are the top countries by deaths as off today, `r Sys.Date()`. 
 ```{r echo=FALSE}
-kable(top_countries_deaths[1:15,], caption = "The top countries by cases")
+kable(top_countries_deaths[1:15,], caption = "The top countries by Number of Deaths")
 ```
 
 Let's look at the same plot on the logarithmic scale. 
@@ -236,7 +236,7 @@ ggplot(subset(dat_deaths_long_selected_predicted, Country %in% c("US", "Italy", 
                                                           "Iran", "China", "United Kingdom")), 
        aes(x = Date, y = total, color = Country)) + 
   geom_line(aes(linetype= type)) + geom_point(aes(shape = type)) + theme_bw(14) + 
-  ylab("Number of Confirmed Cases") + scale_y_log10()
+  ylab("Number of Deaths") + scale_y_log10()
 
 ```
 
