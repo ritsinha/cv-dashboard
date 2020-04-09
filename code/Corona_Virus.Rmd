@@ -314,7 +314,7 @@ names(dat_deaths_long)[3] = "total_deaths"
 dat_both_long = merge(dat_cases_long, dat_deaths_long)
 dat_both_long$mortality_rate = dat_both_long$total_deaths/(dat_both_long$total_cases+1) * 100
 
-ggplot(subset(dat_both_long, (Country %in% top_countries_both$Country[1:12] & total_cases > 1000)), 
+ggplot(subset(dat_both_long, (Country %in% top_countries_both$Country[1:16] & total_cases > 1000)), 
        aes(x=Date, y = mortality_rate, color=total_cases)) +
   geom_smooth(method = 'loess', span=0.6) + theme_bw() + ylab("Mortality Rate (%)") + 
   facet_wrap(~Country, scales = 'fixed') + theme(axis.text.x=element_text(angle = -90, vjust = 0.5, hjust=1))
