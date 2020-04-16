@@ -295,7 +295,7 @@ Let's look at whether we are over the peak daily cases and deaths. We see some c
 ```{r echo=FALSE, warning = FALSE}
 ggplot(subset(dat_deaths_long, Country %in% top_countries$Country[1:16]), 
        aes(x = Date, y = daily, color = Country)) + 
-  geom_smooth(method = "loess", se = FALSE) + geom_point(alpha = 0.2) + theme_bw(14) + facet_wrap(~Country, scales = 'free') +
+  geom_smooth(method = "loess", se = FALSE) + geom_point(alpha = 0.2) + theme_bw(10) + facet_wrap(~Country, scales = 'free') +
   ylab("Daily Number of Deaths") 
 ```
 
