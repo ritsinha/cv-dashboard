@@ -63,6 +63,11 @@ dat_cases_long$Date  = as.Date(gsub("_", "-", gsub("date", "", dat_cases_long$Da
 dat_cases_long = dat_cases_long %>%
   arrange(Country, Date)
 
+dat_cases_long = dat_cases_long %>% 
+  group_by(Country) %>% 
+  mutate(daily = total - lag(total)) %>% 
+  data.frame()
+
 dat_deaths = read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv")
 
 names(dat_deaths)[1] = "State"
@@ -98,6 +103,11 @@ dat_deaths_long$Date  = as.Date(gsub("_", "-", gsub("date", "", dat_deaths_long$
 
 dat_deaths_long = dat_deaths_long %>%
   arrange(Country, Date)
+
+dat_deaths_long = dat_deaths_long %>% 
+  group_by(Country) %>% 
+  mutate(daily = total - lag(total)) %>% 
+  data.frame()
 
 top = 12
 
@@ -278,6 +288,18 @@ ggplot(dat_deaths_daily_predicted,
 
 ```
 
+## Are we over the peak?
+
+Let's look at whether we are over the peak daily cases and deaths. We see some countries that have reached their peaks, but many are still rising. 
+
+```{r echo=FALSE, warning = FALSE}
+ggplot(subset(dat_deaths_long, Country %in% top_countries$Country[1:16]), 
+       aes(x = Date, y = daily, color = Country)) + 
+  geom_smooth(method = "loess", se = FALSE) + geom_point(alpha = 0.2) + theme_bw(14) + facet_wrap(~Country, scales = 'free') +
+  ylab("Daily Number of Deaths") 
+```
+
+
 ## Mortality Rate
 
 Next, let's start looking at the mortality rates across countries. We see a big spread, going from 0.5% in Germany to 10% in Italy. 
@@ -309,7 +331,9 @@ Let's look at a few cases below.
 
 ```{r echo=FALSE, warning = FALSE}
 names(dat_cases_long)[3] = "total_cases"
+names(dat_cases_long)[4] = "daily_cases"
 names(dat_deaths_long)[3] = "total_deaths"
+names(dat_deaths_long)[4] = "daily_deaths"
 
 dat_both_long = merge(dat_cases_long, dat_deaths_long)
 dat_both_long$mortality_rate = dat_both_long$total_deaths/(dat_both_long$total_cases+1) * 100
