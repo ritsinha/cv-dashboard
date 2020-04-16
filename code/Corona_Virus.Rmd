@@ -290,13 +290,22 @@ ggplot(dat_deaths_daily_predicted,
 
 ## Are we over the peak?
 
-Let's look at whether we are over the peak daily cases and deaths. We see some countries that have reached their peaks, but many are still rising. 
+Let's look at whether we are over the peak daily cases and deaths. Most countries seem to be past the peak in cases. But for the daily deaths, we see some countries that are past their peaks, but many are still rising. 
+
+
+```{r echo=FALSE, warning = FALSE}
+ggplot(subset(dat_cases_long, Country %in% top_countries$Country[1:16]), 
+       aes(x = Date, y = daily, color = Country)) + 
+  geom_smooth(method = "loess", se = FALSE, span = 0.2) + geom_point(alpha = 0.2) + theme_bw(10) + facet_wrap(~Country, scales = 'free') +
+  ylab("Daily Number of Cases") + ggtitle("Daily Cases")
+```
+
 
 ```{r echo=FALSE, warning = FALSE}
 ggplot(subset(dat_deaths_long, Country %in% top_countries$Country[1:16]), 
        aes(x = Date, y = daily, color = Country)) + 
-  geom_smooth(method = "loess", se = FALSE) + geom_point(alpha = 0.2) + theme_bw(10) + facet_wrap(~Country, scales = 'free') +
-  ylab("Daily Number of Deaths") 
+  geom_smooth(method = "loess", se = FALSE, span = 0.2) + geom_point(alpha = 0.2) + theme_bw(10) + facet_wrap(~Country, scales = 'free') +
+  ylab("Daily Number of Deaths")  + ggtitle("Daily Deaths")
 ```
 
 
