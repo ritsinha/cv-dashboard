@@ -68,6 +68,8 @@ dat_cases_long = dat_cases_long %>%
   mutate(daily = total - lag(total)) %>% 
   data.frame()
 
+dat_cases_long$daily = ifelse(dat_cases_long$daily < 0 , 0, dat_cases_long$daily)
+  
 dat_deaths = read_csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv")
 
 names(dat_deaths)[1] = "State"
@@ -108,6 +110,8 @@ dat_deaths_long = dat_deaths_long %>%
   group_by(Country) %>% 
   mutate(daily = total - lag(total)) %>% 
   data.frame()
+
+dat_deaths_long$daily = ifelse(dat_deaths_long$daily < 0 , 0, dat_deaths_long$daily)
 
 top = 12
 
@@ -242,8 +246,7 @@ dat_deaths_long_selected$type = "Observed"
 
 dat_deaths_long_selected_predicted = merge(dat_deaths_long_selected, predict_df, all = TRUE)
 
-ggplot(subset(dat_deaths_long_selected_predicted, Country %in% c("US", "Italy", "Spain","Germany", 
-                                                          "Iran", "China", "United Kingdom")), 
+ggplot(subset(dat_deaths_long_selected_predicted, (Country %in% top_countries$Country[1:top] & total > 50)), 
        aes(x = Date, y = total, color = Country)) + 
   geom_line(aes(linetype= type)) + geom_point(aes(shape = type)) + theme_bw(14) + 
   ylab("Number of Deaths") + scale_y_log10()
