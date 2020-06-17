@@ -142,7 +142,7 @@ ggplot(subset(dat_cases_long, (Country %in% top_countries$Country[1:top] & total
 Given how good the exponential fit seems to be, I next perform a regression to predict the future number of cases by country. This is a very simple model, a country specific regression, where we fit a linear regression to the logarithm of the number of cases. In the absence of significant efforts, like the lockdowns that are currently in place, each of the countries below are likely to see million plus cases, in just 10 days. 
 
 ```{r echo=FALSE, warning = FALSE}
-dat_cases_long_selected = subset(dat_cases_long, (Country %in% c(top_countries$Country[1:top], "India") & total > 100))
+dat_cases_long_selected = subset(dat_cases_long, (Country %in% c(top_countries$Country[1:top]) & total > 100))
 
 fit = lm(log10(total) ~ -1 + Country + Country:Date, data = dat_cases_long_selected,
          weights = )
@@ -157,7 +157,7 @@ dat_cases_long_selected$type = "Observed"
 
 dat_cases_long_selected_predicted = merge(dat_cases_long_selected, predict_df, all = TRUE)
 
-ggplot(subset(dat_cases_long_selected_predicted, Country %in% c("US", "Italy", "Spain","Germany", "India")), 
+ggplot(subset(dat_cases_long_selected_predicted, Country %in% c(top_countries$Country[1:top])), 
        aes(x = Date, y = total, color = Country)) + 
   geom_line(aes(linetype= type)) + geom_point(aes(shape = type)) + theme_bw(14) + 
   ylab("Number of Confirmed Cases") + scale_y_log10()
